@@ -1,113 +1,181 @@
-async function searchRoutes() {
-  const routeName = document.getElementById('routeInput').value.trim();
-  const routeResults = document.getElementById('routeResults');
+let routeSearchedList = document.querySelector(".routeSearchedList");
+let searchbox = document.querySelector("#searchbox");
+let searchBtn = document.querySelector("#searchBtn");
+let stopID_name = {};
+let etaList = document.querySelector(".etaList");
+let stopList22 = document.querySelector(".stopList22");
+let loading = document.getElementById("loading");
 
-  try {
-      const response = await fetch('https://data.etabus.gov.hk/v1/transport/kmb/route/');
-      if (!response.ok) throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
-      const data = await response.json();
+// Function to show the loading indicator
+function showLoading() {
+  loading.classList.remove("hidden");
+}
 
-      const filteredRoutes = data.data.filter(route => route.route === routeName);
+// Function to hide the loading indicator
+function hideLoading() {
+  loading.classList.add("hidden");
+}
 
-      if (filteredRoutes.length > 0) {
-          routeResults.innerHTML = '';
-          filteredRoutes.forEach(route => {
-              const routeElement = document.createElement('div');
-              routeElement.textContent = `Route: ${route.route} | Bound: ${route.bound}`;
-              const routeElement2 = document.createElement('h3');
-              routeElement2.textContent = `出發站Origin: ${route.orig_tc} ${route.orig_en}`;
-              routeElement.addEventListener('click', () => showRouteDetails(route));
-              routeResults.appendChild(routeElement);
-              routeResults.appendChild(routeElement2);
-              const separator = document.createElement('hr');
-              routeResults.appendChild(separator);
+// Getting stop ID name first
+window.addEventListener("load", () => {
+  showLoading();
+  axios
+    .get("https://data.etabus.gov.hk/v1/transport/kmb/stop")
+    .then(function (stopNames_response) {
+      for (let stoplist of stopNames_response.data.data) {
+        stopID_name[stoplist.stop] = stoplist.name_tc;
+      }
+      console.log(stopID_name);
+    })
+    .catch(function (stopNames_error) {
+      alert("API is unavailable");
+      console.log("API is unavailable");
+    })
+    .finally(() => {
+      hideLoading();
+    });
+});
+
+searchBtn.addEventListener("click", function () {
+  routeSearchedList.innerHTML = "";
+  stopList22.innerHTML = "";
+  etaList.innerHTML = "";
+
+  showLoading();
+  axios
+    .get("https://data.etabus.gov.hk/v1/transport/kmb/route/")
+    .then(function (route_response) {
+      let routes = route_response.data.data;
+      let routeChecked = [];
+      let inputUpper = searchbox.value.toUpperCase();
+      let fixInput = inputUpper.replace(/ /g, "");
+      searchbox.value = fixInput;
+
+      for (let route of routes) {
+        if (route["route"] == searchbox.value) {
+          routeChecked.push(route);
+        }
+      }
+      if (!routeChecked.length) {
+        alert("Bus route is not found");
+        searchbox.value = "";
+      }
+      console.log(routeChecked);
+
+      for (let i = 0; i < routeChecked.length; i++) {
+        routeSearchedList.innerHTML += `<button
+          class="routeNumber"
+          type="button"
+        >
+        ${routeChecked[i].orig_tc} > ${routeChecked[i].dest_tc}
+        </button>`;
+        let selectedRoute = document.querySelectorAll(`.routeNumber`);
+        selectedRoute.forEach((eachRoute, eachIndex) => {
+          eachRoute.addEventListener("click", function () {
+            let routeboundConverted = "";
+            stopList22.innerHTML = "";
+            etaList.innerHTML = "";
+
+            routeboundConverted =
+              routeChecked[eachIndex].bound == "O" ? "outbound" : "inbound";
+            showLoading();
+            axios
+              .get(
+                "https://data.etabus.gov.hk/v1/transport/kmb/route-stop/" +
+                  routeChecked[eachIndex].route +
+                  "/" +
+                  routeboundConverted +
+                  "/" +
+                  routeChecked[eachIndex].service_type
+              )
+              .then(function (response) {
+                let stopInfo;
+                let etaClicks = [];
+                let stopIDList = [];
+
+                for (let j = 0; j < response.data.data.length; j++) {
+                  stopInfo = response.data.data[j];
+                  stopIDList.push(stopInfo.stop);
+
+                  for (let stopMatching in stopID_name) {
+                    if (stopInfo.stop == stopMatching) {
+                      stopList22.innerHTML += `<button
+                        type="button" >
+                        <div class="text-red-700 p-px  flex w-5 justify-center rounded-lg">${
+                          j + 1
+                        }</div> ${stopID_name[stopMatching]}
+                      </button>`;
+                    }
+                  }
+                }
+
+                etaClicks = document.querySelectorAll(".list");
+                etaClicks.forEach((element, index) => {
+                  element.addEventListener("click", function () {
+                    etaList.innerHTML = "";
+                    showLoading();
+                    axios
+                      .get(
+                        "https://data.etabus.gov.hk/v1/transport/kmb/eta/" +
+                          stopIDList[index] +
+                          "/" +
+                          routeChecked[eachIndex].route +
+                          "/" +
+                          routeChecked[eachIndex].service_type
+                      )
+                      .then(function (etaResponse) {
+                        let arrayOfEtas = etaResponse.data.data;
+                        // console.log(arrayOfEtas);
+                        let filter_arrayOfEtas = arrayOfEtas.filter(function (
+                          info
+                        ) {
+                          return (
+                            info.dir == routeChecked[eachIndex].bound &&
+                            info.service_type ==
+                              routeChecked[eachIndex].service_type &&
+                            info.seq == index + 1
+                          );
+                        });
+
+                        for (let k = 0; k < filter_arrayOfEtas.length; k++) {
+                          let etaTime = filter_arrayOfEtas[k].eta;
+                          if (etaTime) {
+                            etaTime = filter_arrayOfEtas[k].eta.slice(11, 16);
+                          } else {
+                            etaTime = "Eta is not provided by KMB";
+                          }
+                          let etaMode = "";
+                          console.log(etaTime);
+                          if (filter_arrayOfEtas[k].rmk_tc == "") {
+                            etaMode = "實時班次";
+                          } else {
+                            etaMode = filter_arrayOfEtas[k].rmk_tc;
+                          }
+                          etaList.innerHTML += `
+                            <div class="Time">${etaTime} ${etaMode}</div>`;
+                          etaList.classList.add("show");
+                        }
+                      })
+                      .finally(() => {
+                        hideLoading();
+                      });
+                  });
+                  element.addEventListener("blur", function () {
+                    etaList.classList.remove("show");
+                  });
+                });
+              })
+              .finally(() => {
+                hideLoading();
+              });
           });
-      } else {
-          routeResults.innerHTML = `No data found for route: ${routeName}`;
+        });
       }
-  } catch (error) {
-      console.error('Error:', error);
-      routeResults.innerHTML = 'An error occurred while fetching the data.';
-  }
-}
-
-async function searchRouteStops() {
-  const routeNumber = document.getElementById('routeInput').value.trim();
-  const stopResults = document.getElementById('stopResults');
-
-  try {
-      const routeStopApiUrl = `https://data.etabus.gov.hk/v1/transport/kmb/route-stop/${routeNumber}`;
-      const routeStopResponse = await fetch(routeStopApiUrl);
-      if (!routeStopResponse.ok) throw new Error(`HTTP error ${routeStopResponse.status}: ${routeStopResponse.statusText}`);
-      const routeStopData = await routeStopResponse.json();
-
-      const filteredStops = routeStopData.data;
-
-      stopResults.innerHTML = '';
-      if (filteredStops.length > 0) {
-          for (const stop of filteredStops) {
-              const stopDetailApiUrl = `https://data.etabus.gov.hk/v1/transport/kmb/stop/${stop.stop}`;
-              const stopDetailResponse = await fetch(stopDetailApiUrl);
-              if (!stopDetailResponse.ok) throw new Error(`HTTP error ${stopDetailResponse.status}: ${stopDetailResponse.statusText}`);
-              const stopDetailData = await stopDetailResponse.json();
-
-              const stopName = stopDetailData.data.name_tc;
-              const stopname = stopDetailData.data.name_en;
-
-              const stopElement = document.createElement('div');
-              stopElement.textContent = `Route: ${stop.route} | Bound: ${stop.bound}`;
-              const stopElement2 = document.createElement('h3');
-              stopElement2.textContent = `站數Seq: ${stop.seq} 站名Stop: ${stopName} ${stopname}`;
-
-              stopResults.appendChild(stopElement);
-              stopResults.appendChild(stopElement2);
-          }
-      } else {
-          stopResults.textContent = `No route stops found for route ${routeNumber}.`;
-      }
-  } catch (error) {
-      console.error('Error:', error);
-      stopResults.textContent = 'An error occurred while fetching the route stop data.';
-  }
-}
-
-// document.getElementById('fetchData').addEventListener('click', async () => {
-//   await searchRoutes();
-//   await searchRouteStops();
-// });
+    })
+    .finally(() => {
+      hideLoading();
+    });
+});
 
 
 
-async function fetchStopTime() {
-  const routeName = document.getElementById('routeInput').value.trim();
-  const stopTimeResults = document.getElementById('results');
-
-  if (!routeName) {
-    alert('Please enter a route name.');
-    return;
-  }
-
-  const stopTimeApiUrl = `https://data.etabus.gov.hk/v1/transport/kmb/stop-time/${routeName}`;
-  console.log(`Fetching data from API URL: ${stopTimeApiUrl}`);
-
-  try {
-    const response = await fetch(stopTimeApiUrl);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
-    const data = await response.json();
-
-    stopTimeResults.innerHTML = '';
-
-    if (data.data && data.data.length > 0) {
-      data.data.forEach(stopTime => {
-        const stopTimeInfo = document.createElement('div');
-        stopTimeInfo.textContent = `Stop: ${stopTime.stop} | Time: ${stopTime.time}`;
-        stopTimeResults.appendChild(stopTimeInfo);
-      });
-    } else {
-      stopTimeResults.textContent = `No stop times found for route: ${routeName}`;
-    }
-  } catch (error) {
-    console.error('Error:', error);
-    stopTimeResults.textContent = 'An error occurred while fetching the stop time data.';
-  }
-}

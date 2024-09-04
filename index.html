@@ -1,29 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="style.css" rel="stylesheet">
-</head>
-<body>
-  <div class="container">
-    <h1>KMB Route Search</h1>
-    <input type="text" id="routeInput" placeholder="route name">
-    <!-- <input type="text" id="serviceType" placeholder="serviceType"> -->
-    <button onclick="searchRoutes()">Rote</button>
-    <button onclick="searchRouteStops()">StopName</button>
-    <button onclick="fetchStopTime()">StopTime</button>
-    </br>
-    </br>
-    <div id="routeResults" class="A">Route</div>
-    </br>
-    <div id="stopResults" class="B">StopName</div>
-    </br>
-    <div id="results" class="C">StopTime</div>
-    <script src="script.js"></script>
-  </div>
-</body>
-</html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="./bus96.png?" />
 
-</body>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="./index.css" />
+    <title>KMB RouteETA</title>
+  </head>
+  <body>
+        <div class="kmbLogo" >
+          <h1 class="KMB">KMB Route Search</h1>
+        </div>
+        <div class="rounded"
+        >
+        <!-- class="rounded-xl flex border-2 border-blue-500 overflow-hidden max-w-md mx-auto font-[sans-serif]" -->
+          <input
+            type="input"
+            placeholder="Search bus routes..."
+            id="searchbox"
+          />
+          <!-- class="w-full outline-none bg-white text-gray-600 text-sm px-4 py-3" -->
+          <button
+            type="button"
+            id="searchBtn"
+            class="searchBtn"
+          >
+            Search
+          </button>
+        </div>
+        <div id="loading">
+          <!-- class=" hidden flex justify-center mt-4" -->
+          <div
+            role="status"
+          >
+          <!-- class="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" -->
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+        <div class="routeSearchedList flex justify-center m"></div>
+        <div class="list">
+          <div
+            class="stopList22"
+          ></div>
+    </div>
+    <div class="etaList"></div>
+    <script src="script.js"></script>
+  </body>
 </html>
